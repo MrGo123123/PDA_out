@@ -33,8 +33,8 @@ class PdaService : Service(), TcpClient.TcpListener {
     var packPlcMode = true
     var packMode = true
 
-    // 弹窗状态
-    private var currentDialog: AlertDialog? = null
+    // 弹窗状态（使用 androidx.appcompat.app.AlertDialog 与 MainActivity 一致）
+    private var currentDialog: androidx.appcompat.app.AlertDialog? = null
 
     interface Callback {
         fun onConnectionStateChanged(connected: Boolean)
@@ -114,7 +114,6 @@ class PdaService : Service(), TcpClient.TcpListener {
         tcpClient?.start()
     }
 
-    // 公开方法供 UI 调用
     fun sendResetCounter() {
         val msg = JSONObject().apply { put("type", "reset_counter") }
         tcpClient?.sendMsg(msg)
@@ -139,7 +138,7 @@ class PdaService : Service(), TcpClient.TcpListener {
         currentDialog = null
     }
 
-    fun setCurrentDialog(dialog: AlertDialog) { currentDialog = dialog }
+    fun setCurrentDialog(dialog: androidx.appcompat.app.AlertDialog) { currentDialog = dialog }
     fun isServerConnected(): Boolean = isConnected
 
     // TcpListener 实现
