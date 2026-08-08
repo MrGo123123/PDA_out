@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="服务器连接配置"
+        android:textSize="18sp"
+        android:textStyle="bold"/>
+
+    <EditText
+        android:id="@+id/et_server_ip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="服务器IP"
+        android:inputType="text"/>
+
+    <EditText
+        android:id="@+id/et_server_port"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="端口"
+        android:inputType="number"/>
+
+    <Button
+        android:id="@+id/btn_save"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="保存配置"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#CCCCCC"
+        android:layout_marginVertical="16dp"/>
+
+    <TextView
+        android:id="@+id/tv_counter_display"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="计数: 0/10"
+        android:textSize="16sp"/>
+
+    <Button
+        android:id="@+id/btn_reset_counter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="清零计数器"/>
+
+    <TextView
+        android:id="@+id/tv_interval"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="设定间隔: 10"
+        android:textSize="16sp"
+        android:layout_marginTop="8dp"/>
+
+    <Button
+        android:id="@+id/btn_set_interval"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="修改间隔"/>
+
+    <TextView
+        android:id="@+id/tv_eff_out"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="有效出库: 0"
+        android:textSize="16sp"
+        android:layout_marginTop="8dp"/>
+
+    <Button
+        android:id="@+id/btn_back"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="返回"
+        android:layout_marginTop="20dp"/>
+</LinearLayout>
