@@ -1,0 +1,220 @@
+package com.example.pdaapp
+
+import android.app.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Binder
+import android.os.IBinder
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import org.json.JSONObject
+
+class PdaService : Service(), TcpClient.TcpListener {
+    companion object {
+        const val ACTION_SCAN = "android.intent.ACTION_DECODE_DATA"
+        const val EXTRA_BARCODE_STRING = "barcode_string"
+        const val EXTRA_BARCODE = "barcode"
+    }
+
+    private val binder = LocalBinder()
+    private var tcpClient: TcpClient? = null
+    private var isConnected = false
+
+    // 状态数据
+    var printCounter = 0
+    var printInterval = 10
+    var effectiveOut = "0"
+    var lastCode = ""
+    var detailHint = "等待扫码..."
+    var detailContent = ""
+    var isAuto = true
+    var packPlcMode = true
+    var packMode = true
+
+    // 弹窗状态
+    private var currentDialog: AlertDialog? = null
+
+    interface Callback {
+        fun onConnectionStateChanged(connected: Boolean)
+        fun onDataUpdated()
+        fun onDialogRequired(dialogType: String, code: String, headers: List<String>?, row: List<String>?)
+    }
+
+    private var callback: Callback? = null
+
+    inner class LocalBinder : Binder() {
+        fun getService(): PdaService = this@PdaService
+    }
+
+    override fun onBind(intent: Intent?): IBinder = binder
+
+    fun setCallback(cb: Callback?) {
+        callback = cb
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        (application as App).pdaService = this
+        startForeground(1, createNotification())
+        registerScanReceiver()
+        connectToServer()
+    }
+
+    override fun onDestroy() {
+        unregisterScanReceiver()
+        tcpClient?.stop()
+        super.onDestroy()
+    }
+
+    private fun createNotification(): Notification {
+        return NotificationCompat.Builder(this, App.CHANNEL_ID)
+            .setContentTitle("PDA扫描服务")
+            .setContentText("正在运行...")
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setOngoing(true)
+            .build()
+    }
+
+    private fun registerScanReceiver() {
+        val filter = IntentFilter(ACTION_SCAN)
+        registerReceiver(scanReceiver, filter)
+    }
+
+    private fun unregisterScanReceiver() {
+        try { unregisterReceiver(scanReceiver) } catch (_: Exception) {}
+    }
+
+    private val scanReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_SCAN) {
+                val barcode = intent.getStringExtra(EXTRA_BARCODE_STRING)
+                if (!barcode.isNullOrEmpty()) {
+                    sendScanData(barcode)
+                }
+            }
+        }
+    }
+
+    private fun sendScanData(code: String) {
+        val msg = JSONObject().apply {
+            put("type", "scan_data")
+            put("code", code)
+            put("ts", System.currentTimeMillis() / 1000.0)
+        }
+        tcpClient?.sendMsg(msg)
+    }
+
+    private fun connectToServer() {
+        val prefs = getSharedPreferences("pda_settings", MODE_PRIVATE)
+        val serverIp = prefs.getString("server_ip", "192.168.1.36") ?: "192.168.1.36"
+        val serverPort = prefs.getInt("server_port", 12347)
+        tcpClient = TcpClient(serverIp, serverPort, this)
+        tcpClient?.start()
+    }
+
+    // 公开方法供 UI 调用
+    fun sendResetCounter() {
+        val msg = JSONObject().apply { put("type", "reset_counter") }
+        tcpClient?.sendMsg(msg)
+    }
+
+    fun sendSetInterval(interval: Int) {
+        val msg = JSONObject().apply {
+            put("type", "set_interval")
+            put("value", interval)
+        }
+        tcpClient?.sendMsg(msg)
+    }
+
+    fun sendDialogResponse(code: String, action: String) {
+        val msg = JSONObject().apply {
+            put("type", "pda_dialog_response")
+            put("code", code)
+            put("action", action)
+        }
+        tcpClient?.sendMsg(msg)
+        currentDialog?.dismiss()
+        currentDialog = null
+    }
+
+    fun setCurrentDialog(dialog: AlertDialog) { currentDialog = dialog }
+    fun isServerConnected(): Boolean = isConnected
+
+    // TcpListener 实现
+    override fun onConnected() {
+        isConnected = true
+        callback?.onConnectionStateChanged(true)
+    }
+
+    override fun onDisconnected() {
+        isConnected = false
+        callback?.onConnectionStateChanged(false)
+    }
+
+    override fun onMessageReceived(msg: JSONObject) {
+        when (msg.optString("type")) {
+            "status_update" -> {
+                printCounter = msg.optInt("print_counter", printCounter)
+                printInterval = msg.optInt("print_interval", printInterval)
+                effectiveOut = msg.optString("effective_out", effectiveOut)
+                lastCode = msg.optString("last_code", lastCode)
+                detailHint = msg.optString("detail_hint", detailHint)
+                detailContent = msg.optString("detail_content", detailContent)
+                isAuto = msg.optBoolean("is_auto", true)
+                packPlcMode = msg.optBoolean("pack_plc_mode", true)
+                packMode = msg.optBoolean("pack_mode", true)
+                callback?.onDataUpdated()
+            }
+            "scan_detail" -> {
+                val code = msg.optString("code")
+                val exist = msg.optBoolean("exist")
+                if (!exist) {
+                    detailContent = "条码：$code\n无有效记录"
+                } else {
+                    val headers = msg.optJSONArray("headers")
+                    val row = msg.optJSONArray("row")
+                    val sb = StringBuilder()
+                    if (headers != null && row != null) {
+                        for (i in 0 until headers.length()) {
+                            if (i >= row.length()) break
+                            sb.append("【${headers.optString(i)}】: ${row.optString(i)}\n")
+                        }
+                    }
+                    detailContent = sb.toString()
+                }
+                callback?.onDataUpdated()
+            }
+            "show_dialog" -> {
+                val dialogType = msg.optString("dialog_type")
+                val code = msg.optString("code")
+                val headers = msg.optJSONArray("headers")?.let { array ->
+                    (0 until array.length()).map { array.optString(it) }
+                }
+                val row = msg.optJSONArray("row")?.let { array ->
+                    (0 until array.length()).map { array.optString(it) }
+                }
+                vibrateAndBeep()
+                callback?.onDialogRequired(dialogType, code, headers, row)
+            }
+            "popup_state" -> {
+                val alarm = msg.optBoolean("alarm")
+                if (!alarm) {
+                    currentDialog?.dismiss()
+                    currentDialog = null
+                }
+            }
+        }
+    }
+
+    private fun vibrateAndBeep() {
+        val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+        vibrator.vibrate(android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+        try {
+            val ringtone = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+            val r = android.media.RingtoneManager.getRingtone(applicationContext, ringtone)
+            r.play()
+        } catch (_: Exception) {}
+    }
+}
