@@ -13,8 +13,11 @@ import org.json.JSONObject
 
 class PdaService : Service(), TcpClient.TcpListener {
     companion object {
-        const val ACTION_SCAN = "android.intent.ACTION_DECODE_DATA"
+        // 优博讯 i6300A Pro 扫描广播 action
+        const val ACTION_SCAN = "android.intent.action.DECODE_DATA"
+        // 根据官方文档，条码字符串通过 "barcode_string" 传递
         const val EXTRA_BARCODE_STRING = "barcode_string"
+        // 条码字节数组
         const val EXTRA_BARCODE = "barcode"
     }
 
@@ -33,7 +36,7 @@ class PdaService : Service(), TcpClient.TcpListener {
     var packPlcMode = true
     var packMode = true
 
-    // 弹窗状态（使用 androidx.appcompat.app.AlertDialog 与 MainActivity 一致）
+    // 弹窗
     private var currentDialog: androidx.appcompat.app.AlertDialog? = null
 
     interface Callback {
@@ -89,9 +92,11 @@ class PdaService : Service(), TcpClient.TcpListener {
     private val scanReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_SCAN) {
+                // 优先取字符串，无则取字节数组转换
                 val barcode = intent.getStringExtra(EXTRA_BARCODE_STRING)
+                    ?: intent.getByteArrayExtra(EXTRA_BARCODE)?.let { String(it) }
                 if (!barcode.isNullOrEmpty()) {
-                    sendScanData(barcode)
+                    sendScanData(barcode.trim())
                 }
             }
         }
