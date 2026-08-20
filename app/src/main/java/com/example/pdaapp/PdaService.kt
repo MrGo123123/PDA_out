@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.json.JSONObject
+import java.lang.ref.WeakReference
 
 class PdaService : Service(), TcpClient.TcpListener {
     companion object {
@@ -45,7 +46,8 @@ class PdaService : Service(), TcpClient.TcpListener {
         fun onDialogRequired(dialogType: String, code: String, headers: List<String>?, row: List<String>?)
     }
 
-    private var callback: Callback? = null
+    // 使用弱引用持有回调，避免内存泄漏，同时保证在 Activity 重建后能重新绑定
+    private var callbackRef: WeakReference<Callback>? = null
 
     inner class LocalBinder : Binder() {
         fun getService(): PdaService = this@PdaService
@@ -54,8 +56,10 @@ class PdaService : Service(), TcpClient.TcpListener {
     override fun onBind(intent: Intent?): IBinder = binder
 
     fun setCallback(cb: Callback?) {
-        callback = cb
+        callbackRef = cb?.let { WeakReference(it) }
     }
+
+    private fun getCallback(): Callback? = callbackRef?.get()
 
     override fun onCreate() {
         super.onCreate()
@@ -92,7 +96,6 @@ class PdaService : Service(), TcpClient.TcpListener {
     private val scanReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_SCAN) {
-                // 优先取字符串，无则取字节数组转换
                 val barcode = intent.getStringExtra(EXTRA_BARCODE_STRING)
                     ?: intent.getByteArrayExtra(EXTRA_BARCODE)?.let { String(it) }
                 if (!barcode.isNullOrEmpty()) {
@@ -149,12 +152,12 @@ class PdaService : Service(), TcpClient.TcpListener {
     // TcpListener 实现
     override fun onConnected() {
         isConnected = true
-        callback?.onConnectionStateChanged(true)
+        getCallback()?.onConnectionStateChanged(true)
     }
 
     override fun onDisconnected() {
         isConnected = false
-        callback?.onConnectionStateChanged(false)
+        getCallback()?.onConnectionStateChanged(false)
     }
 
     override fun onMessageReceived(msg: JSONObject) {
@@ -169,7 +172,7 @@ class PdaService : Service(), TcpClient.TcpListener {
                 isAuto = msg.optBoolean("is_auto", true)
                 packPlcMode = msg.optBoolean("pack_plc_mode", true)
                 packMode = msg.optBoolean("pack_mode", true)
-                callback?.onDataUpdated()
+                getCallback()?.onDataUpdated()
             }
             "scan_detail" -> {
                 val code = msg.optString("code")
@@ -188,7 +191,7 @@ class PdaService : Service(), TcpClient.TcpListener {
                     }
                     detailContent = sb.toString()
                 }
-                callback?.onDataUpdated()
+                getCallback()?.onDataUpdated()
             }
             "show_dialog" -> {
                 val dialogType = msg.optString("dialog_type")
@@ -200,7 +203,7 @@ class PdaService : Service(), TcpClient.TcpListener {
                     (0 until array.length()).map { array.optString(it) }
                 }
                 vibrateAndBeep()
-                callback?.onDialogRequired(dialogType, code, headers, row)
+                getCallback()?.onDialogRequired(dialogType, code, headers, row)
             }
             "popup_state" -> {
                 val alarm = msg.optBoolean("alarm")
@@ -208,6 +211,12 @@ class PdaService : Service(), TcpClient.TcpListener {
                     currentDialog?.dismiss()
                     currentDialog = null
                 }
+            }
+            "heartbeat" -> {
+                // 收到心跳回复，可忽略
+            }
+            "heartbeat_ack" -> {
+                // 心跳确认，可忽略
             }
         }
     }
