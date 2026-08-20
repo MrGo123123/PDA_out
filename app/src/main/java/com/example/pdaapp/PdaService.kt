@@ -14,11 +14,8 @@ import java.lang.ref.WeakReference
 
 class PdaService : Service(), TcpClient.TcpListener {
     companion object {
-        // 优博讯 i6300A Pro 扫描广播 action
         const val ACTION_SCAN = "android.intent.action.DECODE_DATA"
-        // 根据官方文档，条码字符串通过 "barcode_string" 传递
         const val EXTRA_BARCODE_STRING = "barcode_string"
-        // 条码字节数组
         const val EXTRA_BARCODE = "barcode"
     }
 
@@ -26,7 +23,6 @@ class PdaService : Service(), TcpClient.TcpListener {
     private var tcpClient: TcpClient? = null
     private var isConnected = false
 
-    // 状态数据
     var printCounter = 0
     var printInterval = 10
     var effectiveOut = "0"
@@ -37,7 +33,6 @@ class PdaService : Service(), TcpClient.TcpListener {
     var packPlcMode = true
     var packMode = true
 
-    // 弹窗
     private var currentDialog: androidx.appcompat.app.AlertDialog? = null
 
     interface Callback {
@@ -46,7 +41,6 @@ class PdaService : Service(), TcpClient.TcpListener {
         fun onDialogRequired(dialogType: String, code: String, headers: List<String>?, row: List<String>?)
     }
 
-    // 使用弱引用持有回调，避免内存泄漏，同时保证在 Activity 重建后能重新绑定
     private var callbackRef: WeakReference<Callback>? = null
 
     inner class LocalBinder : Binder() {
@@ -118,21 +112,9 @@ class PdaService : Service(), TcpClient.TcpListener {
         val prefs = getSharedPreferences("pda_settings", MODE_PRIVATE)
         val serverIp = prefs.getString("server_ip", "192.168.1.36") ?: "192.168.1.36"
         val serverPort = prefs.getInt("server_port", 12347)
+        Log.d("PdaService", "连接服务器: $serverIp:$serverPort")
         tcpClient = TcpClient(serverIp, serverPort, this)
         tcpClient?.start()
-    }
-
-    fun sendResetCounter() {
-        val msg = JSONObject().apply { put("type", "reset_counter") }
-        tcpClient?.sendMsg(msg)
-    }
-
-    fun sendSetInterval(interval: Int) {
-        val msg = JSONObject().apply {
-            put("type", "set_interval")
-            put("value", interval)
-        }
-        tcpClient?.sendMsg(msg)
     }
 
     fun sendDialogResponse(code: String, action: String) {
@@ -149,19 +131,22 @@ class PdaService : Service(), TcpClient.TcpListener {
     fun setCurrentDialog(dialog: androidx.appcompat.app.AlertDialog) { currentDialog = dialog }
     fun isServerConnected(): Boolean = isConnected
 
-    // TcpListener 实现
     override fun onConnected() {
+        Log.d("PdaService", "连接成功")
         isConnected = true
         getCallback()?.onConnectionStateChanged(true)
     }
 
     override fun onDisconnected() {
+        Log.d("PdaService", "连接断开")
         isConnected = false
         getCallback()?.onConnectionStateChanged(false)
     }
 
     override fun onMessageReceived(msg: JSONObject) {
-        when (msg.optString("type")) {
+        val type = msg.optString("type")
+        Log.d("PdaService", "收到消息类型: $type")
+        when (type) {
             "status_update" -> {
                 printCounter = msg.optInt("print_counter", printCounter)
                 printInterval = msg.optInt("print_interval", printInterval)
@@ -212,11 +197,8 @@ class PdaService : Service(), TcpClient.TcpListener {
                     currentDialog = null
                 }
             }
-            "heartbeat" -> {
-                // 收到心跳回复，可忽略
-            }
-            "heartbeat_ack" -> {
-                // 心跳确认，可忽略
+            "heartbeat", "heartbeat_ack" -> {
+                // 心跳相关，忽略
             }
         }
     }
