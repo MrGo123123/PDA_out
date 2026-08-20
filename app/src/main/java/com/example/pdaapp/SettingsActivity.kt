@@ -6,6 +6,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 class SettingsActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -33,8 +34,8 @@ class SettingsActivity : AppCompatActivity() {
 
         btnBack.setOnClickListener { finish() }
 
-        // 从 PdaService 获取数据（显式类型转换）
-        val service = (application as App).pdaService as? PdaService
+        // 获取 PdaService 实例
+        val service = (application as App).pdaService
         service?.let {
             tvCounter.text = "计数: ${it.printCounter} / ${it.printInterval}"
             tvEffectiveOut.text = "有效出库: ${it.effectiveOut}"
@@ -42,8 +43,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         btnResetCounter.setOnClickListener {
-            // 显式类型转换后调用方法
-            ((application as App).pdaService as? PdaService)?.sendResetCounter()
+            (application as App).pdaService?.sendResetCounter()
         }
 
         btnSetInterval.setOnClickListener {
@@ -54,14 +54,11 @@ class SettingsActivity : AppCompatActivity() {
                 .setPositiveButton("确定") { _, _ ->
                     val interval = input.text.toString().toIntOrNull()
                     if (interval != null) {
-                        // 显式类型转换后调用方法
-                        ((application as App).pdaService as? PdaService)?.sendSetInterval(interval)
+                        (application as App).pdaService?.sendSetInterval(interval)
                     }
                 }
                 .setNegativeButton("取消", null)
                 .show()
         }
-    }
-}
     }
 }
