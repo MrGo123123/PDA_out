@@ -33,8 +33,8 @@ class SettingsActivity : AppCompatActivity() {
 
         btnBack.setOnClickListener { finish() }
 
-        // 从 PdaService 获取数据
-        val service = (application as App).pdaService
+        // 从 PdaService 获取数据（显式类型转换）
+        val service = (application as App).pdaService as? PdaService
         service?.let {
             tvCounter.text = "计数: ${it.printCounter} / ${it.printInterval}"
             tvEffectiveOut.text = "有效出库: ${it.effectiveOut}"
@@ -42,7 +42,8 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         btnResetCounter.setOnClickListener {
-            (application as App).pdaService?.sendResetCounter()
+            // 显式类型转换后调用方法
+            ((application as App).pdaService as? PdaService)?.sendResetCounter()
         }
 
         btnSetInterval.setOnClickListener {
@@ -53,11 +54,14 @@ class SettingsActivity : AppCompatActivity() {
                 .setPositiveButton("确定") { _, _ ->
                     val interval = input.text.toString().toIntOrNull()
                     if (interval != null) {
-                        (application as App).pdaService?.sendSetInterval(interval)
+                        // 显式类型转换后调用方法
+                        ((application as App).pdaService as? PdaService)?.sendSetInterval(interval)
                     }
                 }
                 .setNegativeButton("取消", null)
                 .show()
         }
+    }
+}
     }
 }
