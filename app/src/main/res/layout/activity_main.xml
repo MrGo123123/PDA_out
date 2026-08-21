@@ -23,15 +23,16 @@
         android:gravity="center"
         android:layout_marginTop="10dp"/>
 
+    <!-- 详情提示行：字体不加粗 -->
     <TextView
         android:id="@+id/tv_detail_hint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text=""
         android:textSize="16sp"
-        android:textStyle="bold"
         android:layout_marginTop="10dp"/>
 
+    <!-- 详情内容：黑体字体，加边框 -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -42,7 +43,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text=""
-            android:textSize="14sp"/>
+            android:textSize="14sp"
+            android:fontFamily="sans-serif"
+            android:textStyle="bold"
+            android:background="@android:drawable/edit_text"
+            android:padding="8dp"/>
     </ScrollView>
 
     <LinearLayout
