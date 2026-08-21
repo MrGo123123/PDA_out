@@ -76,9 +76,16 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
         runOnUiThread { updateUI() }
     }
 
-    override fun onDialogRequired(dialogType: String, code: String, headers: List<String>?, row: List<String>?) {
+    override fun onDialogRequired(
+        dialogType: String,
+        code: String,
+        headers: List<String>?,
+        row: List<String>?,
+        title: String?,
+        message: String?
+    ) {
         runOnUiThread {
-            showPdaDialog(dialogType, code, headers, row)
+            showPdaDialog(dialogType, code, headers, row, title, message)
         }
     }
 
@@ -101,8 +108,24 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
         }
     }
 
-    private fun showPdaDialog(dialogType: String, code: String, headers: List<String>?, row: List<String>?) {
+    private fun showPdaDialog(
+        dialogType: String,
+        code: String,
+        headers: List<String>?,
+        row: List<String>?,
+        title: String?,
+        message: String?
+    ) {
         when (dialogType) {
+            "info" -> {
+                AlertDialog.Builder(this)
+                    .setTitle(title ?: "提示")
+                    .setMessage(message ?: "")
+                    .setPositiveButton("确定") { _, _ -> pdaService?.sendDialogResponse(code, "close") }
+                    .setCancelable(false)
+                    .show()
+                    .also { pdaService?.setCurrentDialog(it) }
+            }
             "no_data" -> {
                 AlertDialog.Builder(this)
                     .setTitle("无探伤数据")
