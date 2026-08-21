@@ -50,7 +50,7 @@ class PdaService : Service(), TcpClient.TcpListener {
     interface Callback {
         fun onConnectionStateChanged(connected: Boolean)
         fun onDataUpdated()
-        fun onDialogRequired(dialogType: String, code: String, headers: List<String>?, row: List<String>?)
+        fun onDialogRequired(dialogType: String, code: String, headers: List<String>?, row: List<String>?, title: String?, message: String?)
         fun onDialogDismissed()
     }
 
@@ -222,6 +222,8 @@ class PdaService : Service(), TcpClient.TcpListener {
             "show_dialog" -> {
                 val dialogType = msg.optString("dialog_type")
                 val code = msg.optString("code")
+                val title = msg.optString("title", "")
+                val message = msg.optString("message", "")
                 val headers = msg.optJSONArray("headers")?.let { array ->
                     (0 until array.length()).map { array.optString(it) }
                 }
@@ -233,7 +235,7 @@ class PdaService : Service(), TcpClient.TcpListener {
                 detailHint = "等待弹窗操作"
                 getCallback()?.onDataUpdated()
                 startAlert()
-                getCallback()?.onDialogRequired(dialogType, code, headers, row)
+                getCallback()?.onDialogRequired(dialogType, code, headers, row, title, message)
             }
             "popup_state" -> {
                 val alarm = msg.optBoolean("alarm")
