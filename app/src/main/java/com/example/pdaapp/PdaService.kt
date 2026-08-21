@@ -39,12 +39,10 @@ class PdaService : Service(), TcpClient.TcpListener {
 
     private var currentDialog: androidx.appcompat.app.AlertDialog? = null
 
-    // 持续提醒相关
     private var vibrator: Vibrator? = null
     private var alertRingtone: Ringtone? = null
     private var isAlerting = false
 
-    // 弹窗前的提示文本
     private var preDialogHint = "等待扫码..."
 
     interface Callback {
@@ -163,7 +161,6 @@ class PdaService : Service(), TcpClient.TcpListener {
         currentDialog?.dismiss()
         currentDialog = null
         stopAlert()
-        // 恢复弹窗前的提示
         detailHint = preDialogHint
         getCallback()?.onDialogDismissed()
         getCallback()?.onDataUpdated()
@@ -230,7 +227,6 @@ class PdaService : Service(), TcpClient.TcpListener {
                 val row = msg.optJSONArray("row")?.let { array ->
                     (0 until array.length()).map { array.optString(it) }
                 }
-                // 保存当前提示，并设置为等待弹窗操作
                 preDialogHint = detailHint
                 detailHint = "等待弹窗操作"
                 getCallback()?.onDataUpdated()
@@ -244,22 +240,18 @@ class PdaService : Service(), TcpClient.TcpListener {
                 }
             }
             "heartbeat", "heartbeat_ack" -> {
-                // 心跳相关，忽略
+                // 忽略
             }
         }
     }
 
-    /**
-     * 启动持续提醒：循环震动 + 循环响铃，直到 stopAlert() 被调用。
-     */
     private fun startAlert() {
         if (isAlerting) return
         isAlerting = true
 
-        // 震动：使用波形重复模式
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                val effect = VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0) // 0 表示重复
+                val effect = VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0)
                 vibrator?.vibrate(effect)
             } else {
                 @Suppress("DEPRECATION")
@@ -269,7 +261,6 @@ class PdaService : Service(), TcpClient.TcpListener {
             Log.e("PdaService", "震动启动失败: ${e.message}")
         }
 
-        // 声音：使用 Ringtone 循环播放默认通知音
         try {
             val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             alertRingtone = RingtoneManager.getRingtone(applicationContext, uri)
@@ -280,9 +271,6 @@ class PdaService : Service(), TcpClient.TcpListener {
         }
     }
 
-    /**
-     * 停止持续提醒，释放震动与声音资源。
-     */
     private fun stopAlert() {
         if (!isAlerting) return
         isAlerting = false
