@@ -44,6 +44,9 @@ class PdaService : Service(), TcpClient.TcpListener {
     private var alertRingtone: Ringtone? = null
     private var isAlerting = false
 
+    // 弹窗前的提示文本
+    private var preDialogHint = "等待扫码..."
+
     interface Callback {
         fun onConnectionStateChanged(connected: Boolean)
         fun onDataUpdated()
@@ -160,7 +163,10 @@ class PdaService : Service(), TcpClient.TcpListener {
         currentDialog?.dismiss()
         currentDialog = null
         stopAlert()
+        // 恢复弹窗前的提示
+        detailHint = preDialogHint
         getCallback()?.onDialogDismissed()
+        getCallback()?.onDataUpdated()
     }
 
     fun isServerConnected(): Boolean = isConnected
@@ -222,6 +228,10 @@ class PdaService : Service(), TcpClient.TcpListener {
                 val row = msg.optJSONArray("row")?.let { array ->
                     (0 until array.length()).map { array.optString(it) }
                 }
+                // 保存当前提示，并设置为等待弹窗操作
+                preDialogHint = detailHint
+                detailHint = "等待弹窗操作"
+                getCallback()?.onDataUpdated()
                 startAlert()
                 getCallback()?.onDialogRequired(dialogType, code, headers, row)
             }
