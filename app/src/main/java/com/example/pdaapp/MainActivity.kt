@@ -132,13 +132,19 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
                     .setTitle("无探伤数据")
                     .setMessage("当前码【${code}】已入库，但未查询到探伤数据，请确认")
                     .setPositiveButton("确认出库") { _, _ ->
-                        AlertDialog.Builder(this)
+                        // 弹出二次确认，并保留原始对话框引用
+                        val confirmDialog = AlertDialog.Builder(this)
                             .setTitle("二次确认")
                             .setMessage("确定强制出库该件？")
                             .setPositiveButton("确定") { _, _ ->
+                                // 关闭二次确认对话框
+                                confirmDialog.dismiss()
+                                // 发送出库响应，并关闭原始对话框
                                 pdaService?.sendDialogResponse(code, "out")
                             }
-                            .setNegativeButton("取消", null)
+                            .setNegativeButton("取消") { _, _ ->
+                                confirmDialog.dismiss()
+                            }
                             .setCancelable(false)
                             .show()
                     }
@@ -162,24 +168,30 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
                     .setTitle("探伤结果 NG - 请选择操作")
                     .setMessage("条码【${code}】探伤结果为 NG，详细信息：\n${detailStr}")
                     .setPositiveButton("确认出库") { _, _ ->
-                        AlertDialog.Builder(this)
+                        val confirmDialog = AlertDialog.Builder(this)
                             .setTitle("二次确认")
                             .setMessage("确定强制出库该NG件？")
                             .setPositiveButton("确定") { _, _ ->
+                                confirmDialog.dismiss()
                                 pdaService?.sendDialogResponse(code, "out")
                             }
-                            .setNegativeButton("取消", null)
+                            .setNegativeButton("取消") { _, _ ->
+                                confirmDialog.dismiss()
+                            }
                             .setCancelable(false)
                             .show()
                     }
                     .setNeutralButton("删除数据") { _, _ ->
-                        AlertDialog.Builder(this)
+                        val confirmDialog = AlertDialog.Builder(this)
                             .setTitle("二次确认")
                             .setMessage("确定永久删除该条记录？")
                             .setPositiveButton("确定") { _, _ ->
+                                confirmDialog.dismiss()
                                 pdaService?.sendDialogResponse(code, "delete")
                             }
-                            .setNegativeButton("取消", null)
+                            .setNegativeButton("取消") { _, _ ->
+                                confirmDialog.dismiss()
+                            }
                             .setCancelable(false)
                             .show()
                     }
