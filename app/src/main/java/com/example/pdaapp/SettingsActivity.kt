@@ -11,6 +11,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
+        // 获取布局控件
         val etServerIp = findViewById<EditText>(R.id.et_server_ip)
         val etServerPort = findViewById<EditText>(R.id.et_server_port)
         val btnSave = findViewById<Button>(R.id.btn_save)
@@ -21,10 +22,12 @@ class SettingsActivity : AppCompatActivity() {
         val btnResetCounter = findViewById<Button>(R.id.btn_reset_counter)
         val btnSetInterval = findViewById<Button>(R.id.btn_set_interval)
 
+        // 读取 SharedPreferences 并填充输入框
         val prefs = getSharedPreferences("pda_settings", MODE_PRIVATE)
         etServerIp.setText(prefs.getString("server_ip", "192.168.1.36"))
         etServerPort.setText(prefs.getInt("server_port", 12347).toString())
 
+        // 保存按钮：保存 IP 和端口
         btnSave.setOnClickListener {
             val ip = etServerIp.text.toString()
             val port = etServerPort.text.toString().toIntOrNull() ?: 12347
@@ -32,20 +35,24 @@ class SettingsActivity : AppCompatActivity() {
             Toast.makeText(this, "配置已保存，需重启服务生效", Toast.LENGTH_SHORT).show()
         }
 
+        // 返回按钮
         btnBack.setOnClickListener { finish() }
 
-        // 获取 PdaService 实例
-        val service = (application as App).pdaService
+        // 从 PdaService 获取当前数据并显示（使用显式类型转换避免歧义）
+        val service = (application as App).pdaService as? PdaService
         service?.let {
             tvCounter.text = "计数: ${it.printCounter} / ${it.printInterval}"
             tvEffectiveOut.text = "有效出库: ${it.effectiveOut}"
             tvInterval.text = "设定间隔: ${it.printInterval}"
         }
 
+        // 清零计数器按钮
         btnResetCounter.setOnClickListener {
-            (application as App).pdaService?.sendResetCounter()
+            // 显式类型转换后调用 sendResetCounter
+            ((application as App).pdaService as? PdaService)?.sendResetCounter()
         }
 
+        // 设定打印间隔按钮
         btnSetInterval.setOnClickListener {
             val input = EditText(this)
             AlertDialog.Builder(this)
@@ -54,7 +61,8 @@ class SettingsActivity : AppCompatActivity() {
                 .setPositiveButton("确定") { _, _ ->
                     val interval = input.text.toString().toIntOrNull()
                     if (interval != null) {
-                        (application as App).pdaService?.sendSetInterval(interval)
+                        // 显式类型转换后调用 sendSetInterval
+                        ((application as App).pdaService as? PdaService)?.sendSetInterval(interval)
                     }
                 }
                 .setNegativeButton("取消", null)
