@@ -5,8 +5,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.Ringtone
+import android.media.RingtoneManager
 import android.os.Binder
 import android.os.IBinder
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.json.JSONObject
@@ -35,10 +39,16 @@ class PdaService : Service(), TcpClient.TcpListener {
 
     private var currentDialog: androidx.appcompat.app.AlertDialog? = null
 
+    // 持续提醒相关
+    private var vibrator: Vibrator? = null
+    private var alertRingtone: Ringtone? = null
+    private var isAlerting = false
+
     interface Callback {
         fun onConnectionStateChanged(connected: Boolean)
         fun onDataUpdated()
         fun onDialogRequired(dialogType: String, code: String, headers: List<String>?, row: List<String>?)
+        fun onDialogDismissed()
     }
 
     private var callbackRef: WeakReference<Callback>? = null
@@ -61,9 +71,11 @@ class PdaService : Service(), TcpClient.TcpListener {
         startForeground(1, createNotification())
         registerScanReceiver()
         connectToServer()
+        vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
     }
 
     override fun onDestroy() {
+        stopAlert()
         unregisterScanReceiver()
         tcpClient?.stop()
         super.onDestroy()
@@ -137,11 +149,20 @@ class PdaService : Service(), TcpClient.TcpListener {
             put("action", action)
         }
         tcpClient?.sendMsg(msg)
-        currentDialog?.dismiss()
-        currentDialog = null
+        dismissCurrentDialog()
     }
 
-    fun setCurrentDialog(dialog: androidx.appcompat.app.AlertDialog) { currentDialog = dialog }
+    fun setCurrentDialog(dialog: androidx.appcompat.app.AlertDialog) {
+        currentDialog = dialog
+    }
+
+    fun dismissCurrentDialog() {
+        currentDialog?.dismiss()
+        currentDialog = null
+        stopAlert()
+        getCallback()?.onDialogDismissed()
+    }
+
     fun isServerConnected(): Boolean = isConnected
 
     override fun onConnected() {
@@ -153,6 +174,7 @@ class PdaService : Service(), TcpClient.TcpListener {
     override fun onDisconnected() {
         Log.d("PdaService", "连接断开")
         isConnected = false
+        dismissCurrentDialog()
         getCallback()?.onConnectionStateChanged(false)
     }
 
@@ -200,14 +222,13 @@ class PdaService : Service(), TcpClient.TcpListener {
                 val row = msg.optJSONArray("row")?.let { array ->
                     (0 until array.length()).map { array.optString(it) }
                 }
-                vibrateAndBeep()
+                startAlert()
                 getCallback()?.onDialogRequired(dialogType, code, headers, row)
             }
             "popup_state" -> {
                 val alarm = msg.optBoolean("alarm")
                 if (!alarm) {
-                    currentDialog?.dismiss()
-                    currentDialog = null
+                    dismissCurrentDialog()
                 }
             }
             "heartbeat", "heartbeat_ack" -> {
@@ -216,13 +237,55 @@ class PdaService : Service(), TcpClient.TcpListener {
         }
     }
 
-    private fun vibrateAndBeep() {
-        val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
-        vibrator.vibrate(android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+    /**
+     * 启动持续提醒：循环震动 + 循环响铃，直到 stopAlert() 被调用。
+     */
+    private fun startAlert() {
+        if (isAlerting) return
+        isAlerting = true
+
+        // 震动：使用波形重复模式
         try {
-            val ringtone = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
-            val r = android.media.RingtoneManager.getRingtone(applicationContext, ringtone)
-            r.play()
-        } catch (_: Exception) {}
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val effect = VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0) // 0 表示重复
+                vibrator?.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(longArrayOf(0, 500, 500), 0)
+            }
+        } catch (e: Exception) {
+            Log.e("PdaService", "震动启动失败: ${e.message}")
+        }
+
+        // 声音：使用 Ringtone 循环播放默认通知音
+        try {
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            alertRingtone = RingtoneManager.getRingtone(applicationContext, uri)
+            alertRingtone?.isLooping = true
+            alertRingtone?.play()
+        } catch (e: Exception) {
+            Log.e("PdaService", "声音启动失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 停止持续提醒，释放震动与声音资源。
+     */
+    private fun stopAlert() {
+        if (!isAlerting) return
+        isAlerting = false
+
+        try {
+            vibrator?.cancel()
+        } catch (e: Exception) {
+            Log.e("PdaService", "震动停止失败: ${e.message}")
+        }
+
+        try {
+            alertRingtone?.stop()
+            alertRingtone = null
+        } catch (e: Exception) {
+            Log.e("PdaService", "声音停止失败: ${e.message}")
+        }
     }
 }
