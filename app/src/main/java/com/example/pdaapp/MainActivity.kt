@@ -84,7 +84,8 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
 
     override fun onDialogDismissed() {
         runOnUiThread {
-            // 弹窗关闭后更新 UI，可选
+            // 弹窗关闭后更新 UI
+            updateUI()
         }
     }
 
