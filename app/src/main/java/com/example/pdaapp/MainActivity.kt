@@ -53,7 +53,6 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        // 绑定服务
         val intent = Intent(this, PdaService::class.java)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
     }
@@ -66,7 +65,6 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
         super.onDestroy()
     }
 
-    // Callback 实现
     override fun onConnectionStateChanged(connected: Boolean) {
         runOnUiThread {
             tvConnectionStatus.text = if (connected) "已连接" else "未连接"
@@ -81,6 +79,12 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
     override fun onDialogRequired(dialogType: String, code: String, headers: List<String>?, row: List<String>?) {
         runOnUiThread {
             showPdaDialog(dialogType, code, headers, row)
+        }
+    }
+
+    override fun onDialogDismissed() {
+        runOnUiThread {
+            // 弹窗关闭后更新 UI，可选
         }
     }
 
