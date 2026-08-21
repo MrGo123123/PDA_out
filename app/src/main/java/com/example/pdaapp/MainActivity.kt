@@ -91,7 +91,6 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
 
     override fun onDialogDismissed() {
         runOnUiThread {
-            // 弹窗关闭后更新 UI
             updateUI()
         }
     }
@@ -118,23 +117,40 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
     ) {
         when (dialogType) {
             "info" -> {
-                AlertDialog.Builder(this)
+                val dialog = AlertDialog.Builder(this)
                     .setTitle(title ?: "提示")
                     .setMessage(message ?: "")
-                    .setPositiveButton("确定") { _, _ -> pdaService?.sendDialogResponse(code, "close") }
+                    .setPositiveButton("确定") { _, _ ->
+                        // 点击确定后关闭弹窗并发送响应
+                        pdaService?.sendDialogResponse(code, "close")
+                    }
                     .setCancelable(false)
                     .show()
-                    .also { pdaService?.setCurrentDialog(it) }
+                pdaService?.setCurrentDialog(dialog)
             }
             "no_data" -> {
-                AlertDialog.Builder(this)
+                val dialog = AlertDialog.Builder(this)
                     .setTitle("无探伤数据")
                     .setMessage("当前码【${code}】已入库，但未查询到探伤数据，请确认")
-                    .setPositiveButton("确认出库") { _, _ -> pdaService?.sendDialogResponse(code, "out") }
-                    .setNegativeButton("取消出库") { _, _ -> pdaService?.sendDialogResponse(code, "cancel") }
+                    .setPositiveButton("确认出库") { _, _ ->
+                        // 二次确认
+                        val confirmDialog = AlertDialog.Builder(this)
+                            .setTitle("二次确认")
+                            .setMessage("确定强制出库该件？")
+                            .setPositiveButton("确定") { _, _ ->
+                                // 发送出库操作
+                                pdaService?.sendDialogResponse(code, "out")
+                            }
+                            .setNegativeButton("取消", null)
+                            .show()
+                        // 注意：不设置当前弹窗为二次确认，保持 original dialog 为 currentDialog
+                    }
+                    .setNegativeButton("取消出库") { _, _ ->
+                        pdaService?.sendDialogResponse(code, "cancel")
+                    }
                     .setCancelable(false)
                     .show()
-                    .also { pdaService?.setCurrentDialog(it) }
+                pdaService?.setCurrentDialog(dialog)
             }
             "ng" -> {
                 val detailStr = buildString {
@@ -145,14 +161,17 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
                         }
                     }
                 }
-                AlertDialog.Builder(this)
+                val dialog = AlertDialog.Builder(this)
                     .setTitle("探伤结果 NG - 请选择操作")
                     .setMessage("条码【${code}】探伤结果为 NG，详细信息：\n${detailStr}")
                     .setPositiveButton("确认出库") { _, _ ->
+                        // 二次确认
                         AlertDialog.Builder(this)
                             .setTitle("二次确认")
                             .setMessage("确定强制出库该NG件？")
-                            .setPositiveButton("确定") { _, _ -> pdaService?.sendDialogResponse(code, "out") }
+                            .setPositiveButton("确定") { _, _ ->
+                                pdaService?.sendDialogResponse(code, "out")
+                            }
                             .setNegativeButton("取消", null)
                             .show()
                     }
@@ -160,14 +179,18 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
                         AlertDialog.Builder(this)
                             .setTitle("二次确认")
                             .setMessage("确定永久删除该条记录？")
-                            .setPositiveButton("确定") { _, _ -> pdaService?.sendDialogResponse(code, "delete") }
+                            .setPositiveButton("确定") { _, _ ->
+                                pdaService?.sendDialogResponse(code, "delete")
+                            }
                             .setNegativeButton("取消", null)
                             .show()
                     }
-                    .setNegativeButton("取消出库") { _, _ -> pdaService?.sendDialogResponse(code, "cancel") }
+                    .setNegativeButton("取消出库") { _, _ ->
+                        pdaService?.sendDialogResponse(code, "cancel")
+                    }
                     .setCancelable(false)
                     .show()
-                    .also { pdaService?.setCurrentDialog(it) }
+                pdaService?.setCurrentDialog(dialog)
             }
         }
     }
