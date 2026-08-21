@@ -117,6 +117,19 @@ class PdaService : Service(), TcpClient.TcpListener {
         tcpClient?.start()
     }
 
+    fun sendResetCounter() {
+        val msg = JSONObject().apply { put("type", "reset_counter") }
+        tcpClient?.sendMsg(msg)
+    }
+
+    fun sendSetInterval(interval: Int) {
+        val msg = JSONObject().apply {
+            put("type", "set_interval")
+            put("value", interval)
+        }
+        tcpClient?.sendMsg(msg)
+    }
+
     fun sendDialogResponse(code: String, action: String) {
         val msg = JSONObject().apply {
             put("type", "pda_dialog_response")
