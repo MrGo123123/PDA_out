@@ -130,11 +130,13 @@ class PdaService : Service(), TcpClient.TcpListener {
         tcpClient?.start()
     }
 
+    // 发送清零计数器命令
     fun sendResetCounter() {
         val msg = JSONObject().apply { put("type", "reset_counter") }
         tcpClient?.sendMsg(msg)
     }
 
+    // 发送设定打印间隔命令
     fun sendSetInterval(interval: Int) {
         val msg = JSONObject().apply {
             put("type", "set_interval")
@@ -143,6 +145,7 @@ class PdaService : Service(), TcpClient.TcpListener {
         tcpClient?.sendMsg(msg)
     }
 
+    // 发送弹窗操作响应
     fun sendDialogResponse(code: String, action: String) {
         val msg = JSONObject().apply {
             put("type", "pda_dialog_response")
@@ -240,7 +243,7 @@ class PdaService : Service(), TcpClient.TcpListener {
                 }
             }
             "heartbeat", "heartbeat_ack" -> {
-                // 忽略
+                // 忽略心跳消息
             }
         }
     }
@@ -249,6 +252,7 @@ class PdaService : Service(), TcpClient.TcpListener {
         if (isAlerting) return
         isAlerting = true
 
+        // 循环震动
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 val effect = VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0)
@@ -261,6 +265,7 @@ class PdaService : Service(), TcpClient.TcpListener {
             Log.e("PdaService", "震动启动失败: ${e.message}")
         }
 
+        // 循环响铃
         try {
             val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             alertRingtone = RingtoneManager.getRingtone(applicationContext, uri)
