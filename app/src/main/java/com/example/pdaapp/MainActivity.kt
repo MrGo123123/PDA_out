@@ -121,6 +121,7 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
                     .setTitle(title ?: "提示")
                     .setMessage(message ?: "")
                     .setPositiveButton("确定") { _, _ ->
+                        // 发送关闭响应
                         pdaService?.sendDialogResponse(code, "close")
                     }
                     .setCancelable(false)
@@ -132,7 +133,7 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
                     .setTitle("无探伤数据")
                     .setMessage("当前码【${code}】已入库，但未查询到探伤数据，请确认")
                     .setPositiveButton("确认出库") { _, _ ->
-                        // 二次确认，不保留引用，点击确定后自动关闭
+                        // 二次确认
                         AlertDialog.Builder(this)
                             .setTitle("二次确认")
                             .setMessage("确定强制出库该件？")
@@ -163,7 +164,7 @@ class MainActivity : AppCompatActivity(), PdaService.Callback {
                     .setTitle("探伤结果 NG - 请选择操作")
                     .setMessage("条码【${code}】探伤结果为 NG，详细信息：\n${detailStr}")
                     .setPositiveButton("确认出库") { _, _ ->
-                        // 二次确认，不保留引用，点击确定后自动关闭
+                        // 二次确认
                         AlertDialog.Builder(this)
                             .setTitle("二次确认")
                             .setMessage("确定强制出库该NG件？")
