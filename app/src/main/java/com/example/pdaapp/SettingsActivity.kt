@@ -38,8 +38,10 @@ class SettingsActivity : AppCompatActivity() {
         // 返回按钮
         btnBack.setOnClickListener { finish() }
 
-        // 从 PdaService 获取当前数据并显示（使用显式类型转换避免歧义）
-        val service = (application as App).pdaService as? PdaService
+        // 安全获取 PdaService 实例
+        val service = (application as App).pdaService
+
+        // 显示当前计数、有效出库、间隔
         service?.let {
             tvCounter.text = "计数: ${it.printCounter} / ${it.printInterval}"
             tvEffectiveOut.text = "有效出库: ${it.effectiveOut}"
@@ -48,8 +50,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // 清零计数器按钮
         btnResetCounter.setOnClickListener {
-            // 显式类型转换后调用 sendResetCounter
-            ((application as App).pdaService as? PdaService)?.sendResetCounter()
+            service?.sendResetCounter() ?: Toast.makeText(this, "服务未连接", Toast.LENGTH_SHORT).show()
+            // 刷新显示
+            service?.let { svc ->
+                tvCounter.text = "计数: ${svc.printCounter} / ${svc.printInterval}"
+            }
         }
 
         // 设定打印间隔按钮
@@ -60,9 +65,14 @@ class SettingsActivity : AppCompatActivity() {
                 .setView(input)
                 .setPositiveButton("确定") { _, _ ->
                     val interval = input.text.toString().toIntOrNull()
-                    if (interval != null) {
-                        // 显式类型转换后调用 sendSetInterval
-                        ((application as App).pdaService as? PdaService)?.sendSetInterval(interval)
+                    if (interval != null && interval in 1..999) {
+                        service?.sendSetInterval(interval) ?: Toast.makeText(this, "服务未连接", Toast.LENGTH_SHORT).show()
+                        // 刷新显示
+                        service?.let { svc ->
+                            tvInterval.text = "设定间隔: ${svc.printInterval}"
+                        }
+                    } else {
+                        Toast.makeText(this, "请输入1~999的整数", Toast.LENGTH_SHORT).show()
                     }
                 }
                 .setNegativeButton("取消", null)
